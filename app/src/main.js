@@ -1,55 +1,59 @@
-// Neon Vice editor wiring: pick a photo per panel, crop it with zoom/pan,
-// edit the title and sub-caption, choose a layout, grade and export size,
-// then export a PNG. A `?shot=` query sets up a fixed scene for a
-// screenshot instead (shots.js). Everything runs offline: photos are read
-// with object URLs and never uploaded anywhere.
-import { drawCover, GRADES, LAYOUTS } from './cover.js';
+// Neon Vice — wires the editor page: state, controls, live preview, PNG export.
+// A `?shot=` query sets up a fixed scene for a screenshot instead (./shots.js).
+import { drawCover, renderExport, LAYOUTS, GRADES_LIST, EXPORT_SIZES } from './cover.js';
 import { runShot } from './shots.js';
 
-const canvas = document.getElementById('cover');
+const preview = document.getElementById('preview');
+const titleInput = document.getElementById('title');
 const captionInput = document.getElementById('caption');
-const subInput = document.getElementById('sub');
-const statusEl = document.getElementById('status');
-const panelTabs = document.getElementById('panel-tabs');
-const zoomInput = document.getElementById('zoom');
-const panXInput = document.getElementById('panx');
-const panYInput = document.getElementById('pany');
-const layoutInput = document.getElementById('layout');
-const gradeInput = document.getElementById('grade');
-const sizeInput = document.getElementById('size');
+const statusLine = document.getElementById('status');
+const panelList = document.getElementById('panels');
+const layoutRow = document.getElementById('layouts');
+const gradeRow = document.getElementById('grades');
+const exportRow = document.getElementById('exports');
 
-const SIZES = {
-  '1080x1080': { w: 1080, h: 1080, label: 'Square 1080 x 1080' },
-  '1080x1350': { w: 1080, h: 1350, label: 'Portrait 1080 x 1350' },
-  '1920x1080': { w: 1920, h: 1080, label: 'Landscape 1920 x 1080' },
-};
+const PANEL_COUNT = { hero: 1, split: 2, trio: 3, grid: 4 };
 
 const state = {
-  layout: 'trio',
+  layout: 'hero',
   grade: 'sunset',
-  size: '1080x1080',
+  title: 'NEON VICE',
   caption: 'Sunset Heist',
-  sub: 'Neon Vice',
-  panels: [null, null, null, null], // { img, zoom, panX, panY } per panel
-  active: 0,
+  panels: [],
 };
 
-function panelCount() {
-  return LAYOUTS[state.layout].panels;
+function blankPanel(img) {
+  return { img: img || null, zoom: 1, ox: 0, oy: 0 };
 }
 
-// Resize the preview canvas to the chosen export size and repaint.
-function render() {
-  const size = SIZES[state.size];
-  canvas.width = size.w;
-  canvas.height = size.h;
-  drawCover(canvas, {
-    layout: state.layout,
-    panels: state.panels.slice(0, panelCount()),
-    caption: state.caption,
-    sub: state.sub,
-    grade: state.grade,
+function setLayout(layout) {
+  state.layout = layout;
+  const want = PANEL_COUNT[layout];
+  while (state.panels.length < want) {
+    state.panels.push(blankPanel(state.panels[0] ? state.panels[0].img : null));
+  }
+  state.panels.length = want;
+  buildPanelControls();
+  refresh();
+}
+
+function setGrade(grade) {
+  state.grade = grade;
+  refresh();
+}
+
+function refresh() {
+  drawCover(preview, state);
+  layoutRow.querySelectorAll('button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.layout === state.layout);
   });
+  gradeRow.querySelectorAll('button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.grade === state.grade);
+  });
+}
+
+function note(text) {
+  statusLine.textContent = text;
 }
 
 /** Loads an image from a URL, resolving once it can be drawn. */
@@ -57,154 +61,162 @@ export function loadImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = () => reject(new Error('could not load ' + url));
     img.src = url;
   });
 }
 
-function buildPanelTabs() {
-  panelTabs.innerHTML = '';
-  for (let i = 0; i < panelCount(); i++) {
+async function loadSample(name, everywhere) {
+  const img = await loadImage('samples/' + name + '.jpg');
+  if (everywhere) {
+    state.panels = state.panels.map(() => blankPanel(img));
+  } else {
+    const firstEmpty = state.panels.findIndex((p) => !p.img);
+    const target = firstEmpty === -1 ? 0 : firstEmpty;
+    state.panels[target] = blankPanel(img);
+  }
+  buildPanelControls();
+  refresh();
+  note('Loaded sample ' + name + '.jpg');
+}
+
+function buildPanelControls() {
+  panelList.innerHTML = '';
+  state.panels.forEach((panel, i) => {
+    const card = document.createElement('div');
+    card.className = 'panel-card';
+    card.innerHTML =
+      '<h3>Panel ' + (i + 1) + '</h3>' +
+      '<label>Photo <input type="file" accept="image/*" data-panel="' + i + '"></label>' +
+      '<label>Zoom <input type="range" min="0.6" max="2.5" step="0.05" value="' + panel.zoom + '" data-zoom="' + i + '"></label>' +
+      '<label>Pan left–right <input type="range" min="-0.5" max="0.5" step="0.02" value="' + panel.ox + '" data-panx="' + i + '"></label>' +
+      '<label>Pan up–down <input type="range" min="-0.5" max="0.5" step="0.02" value="' + panel.oy + '" data-pany="' + i + '"></label>' +
+      '<div class="row"><button type="button" data-sample="boulevard" data-panel="' + i + '">Boulevard</button>' +
+      '<button type="button" data-sample="pier" data-panel="' + i + '">Pier</button></div>';
+    panelList.appendChild(card);
+  });
+
+  panelList.querySelectorAll('input[type=file]').forEach((input) => {
+    input.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const i = Number(e.target.dataset.panel);
+      state.panels[i].img = await loadImage(URL.createObjectURL(file));
+      state.panels[i].zoom = 1;
+      state.panels[i].ox = 0;
+      state.panels[i].oy = 0;
+      refresh();
+      note('Photo loaded into panel ' + (i + 1));
+    });
+  });
+  panelList.querySelectorAll('[data-zoom]').forEach((input) => {
+    input.addEventListener('input', (e) => {
+      state.panels[Number(e.target.dataset.zoom)].zoom = Number(e.target.value);
+      refresh();
+    });
+  });
+  panelList.querySelectorAll('[data-panx]').forEach((input) => {
+    input.addEventListener('input', (e) => {
+      state.panels[Number(e.target.dataset.panx)].ox = Number(e.target.value);
+      refresh();
+    });
+  });
+  panelList.querySelectorAll('[data-pany]').forEach((input) => {
+    input.addEventListener('input', (e) => {
+      state.panels[Number(e.target.dataset.pany)].oy = Number(e.target.value);
+      refresh();
+    });
+  });
+  panelList.querySelectorAll('[data-sample]').forEach((button) => {
+    button.addEventListener('click', async (e) => {
+      const i = Number(e.target.dataset.panel);
+      state.panels[i].img = await loadImage('samples/' + e.target.dataset.sample + '.jpg');
+      refresh();
+      note('Sample loaded into panel ' + (i + 1));
+    });
+  });
+}
+
+function buildPicker(row, items, attr, onPick) {
+  items.forEach((item) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'tab' + (i === state.active ? ' active' : '');
-    b.textContent = `Panel ${i + 1}${state.panels[i] ? ' ✓' : ''}`;
-    b.addEventListener('click', () => {
-      state.active = i;
-      syncPanelControls();
-      buildPanelTabs();
-    });
-    panelTabs.appendChild(b);
-  }
-}
-
-function syncPanelControls() {
-  const p = state.panels[state.active];
-  zoomInput.value = p ? p.zoom : 1;
-  panXInput.value = p ? p.panX : 0;
-  panYInput.value = p ? p.panY : 0;
-  document.getElementById('zoom-val').textContent = `${Math.round((p ? p.zoom : 1) * 100)}%`;
-  document.getElementById('panx-val').textContent = (p ? p.panX : 0).toFixed(2);
-  document.getElementById('pany-val').textContent = (p ? p.panY : 0).toFixed(2);
-}
-
-function setPanelPhoto(img) {
-  state.panels[state.active] = { img, zoom: 1, panX: 0, panY: 0 };
-  syncPanelControls();
-  buildPanelTabs();
-  render();
-}
-
-function applyPanelTransform() {
-  const p = state.panels[state.active];
-  if (!p) return;
-  p.zoom = Number(zoomInput.value);
-  p.panX = Number(panXInput.value);
-  p.panY = Number(panYInput.value);
-  syncPanelControls();
-  render();
-}
-
-document.getElementById('photo').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  try {
-    setPanelPhoto(await loadImage(URL.createObjectURL(file)));
-    statusEl.textContent = `Photo loaded into Panel ${state.active + 1}.`;
-  } catch {
-    statusEl.textContent = 'Could not read that photo file.';
-  }
-  e.target.value = '';
-});
-
-for (const btn of document.querySelectorAll('[data-sample]')) {
-  btn.addEventListener('click', async () => {
-    try {
-      setPanelPhoto(await loadImage(`samples/${btn.dataset.sample}.jpg`));
-      statusEl.textContent = `Sample "${btn.dataset.sample}" loaded into Panel ${state.active + 1}.`;
-    } catch {
-      statusEl.textContent = 'Sample photo failed to load.';
-    }
+    b.textContent = item.label;
+    b.dataset[attr] = item.value;
+    b.addEventListener('click', () => onPick(item.value));
+    row.appendChild(b);
   });
 }
 
-document.getElementById('fill-all').addEventListener('click', () => {
-  // Copy the active panel's photo into every empty panel of the layout.
-  const src = state.panels[state.active];
-  if (!src) {
-    statusEl.textContent = 'Load a photo into the active panel first.';
-    return;
-  }
-  for (let i = 0; i < panelCount(); i++) {
-    if (!state.panels[i]) state.panels[i] = { ...src };
-  }
-  buildPanelTabs();
-  render();
-  statusEl.textContent = 'Photo filled into the empty panels.';
+buildPicker(layoutRow, LAYOUTS.map((l) => ({ label: l[0].toUpperCase() + l.slice(1), value: l })), 'layout', setLayout);
+buildPicker(gradeRow, [
+  { label: 'Vice Sunset', value: 'sunset' },
+  { label: 'Neon Night', value: 'night' },
+  { label: 'Palm Dusk', value: 'dusk' },
+], 'grade', setGrade);
+
+EXPORT_SIZES.forEach((size) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = 'Export PNG ' + size.label;
+  b.addEventListener('click', () => exportCover(size));
+  exportRow.appendChild(b);
 });
 
-captionInput.addEventListener('input', () => { state.caption = captionInput.value; render(); });
-subInput.addEventListener('input', () => { state.sub = subInput.value; render(); });
-layoutInput.addEventListener('change', () => {
-  state.layout = layoutInput.value;
-  state.active = 0;
-  buildPanelTabs();
-  syncPanelControls();
-  render();
-});
-gradeInput.addEventListener('change', () => { state.grade = gradeInput.value; render(); });
-sizeInput.addEventListener('change', () => { state.size = sizeInput.value; render(); });
-zoomInput.addEventListener('input', applyPanelTransform);
-panXInput.addEventListener('input', applyPanelTransform);
-panYInput.addEventListener('input', applyPanelTransform);
+titleInput.addEventListener('input', () => { state.title = titleInput.value; refresh(); });
+captionInput.addEventListener('input', () => { state.caption = captionInput.value; refresh(); });
 
-document.getElementById('export').addEventListener('click', () => {
-  const size = SIZES[state.size];
-  // Render at full export resolution on an offscreen canvas so the preview
-  // size never limits the PNG.
-  const off = document.createElement('canvas');
-  off.width = size.w;
-  off.height = size.h;
-  drawCover(off, {
-    layout: state.layout,
-    panels: state.panels.slice(0, panelCount()),
-    caption: state.caption,
-    sub: state.sub,
-    grade: state.grade,
-  });
-  off.toBlob((blob) => {
-    if (!blob) {
-      statusEl.textContent = 'Export failed in this browser.';
-      return;
-    }
+// Double-click the preview to cycle through the layouts, a quick way to try them.
+preview.addEventListener('dblclick', () => {
+  const next = LAYOUTS[(LAYOUTS.indexOf(state.layout) + 1) % LAYOUTS.length];
+  setLayout(next);
+  note('Layout: ' + next);
+});
+
+document.getElementById('sample-boulevard').addEventListener('click', () => loadSample('boulevard', true));
+document.getElementById('sample-pier').addEventListener('click', () => loadSample('pier', true));
+
+/** Renders the current state at an exact size and downloads it as a PNG. */
+export function exportCover(size) {
+  const canvas = renderExport(state, size.w, size.h);
+  canvas.toBlob((blob) => {
+    if (!blob) { note('Export failed'); return; }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `neon-vice-${size.w}x${size.h}.png`;
+    a.download = 'neon-vice-' + size.w + 'x' + size.h + '.png';
     a.click();
-    statusEl.textContent = `Saved neon-vice-${size.w}x${size.h}.png`;
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    note('Saved neon-vice-' + size.w + 'x' + size.h + '.png');
   }, 'image/png');
-});
+}
 
-const shot = new URLSearchParams(location.search).get('shot');
+/** Test hook: renders at an exact size and resolves to a PNG data URL. */
+window.__exportPNG = function exportPNG(width, height) {
+  return new Promise((resolve) => {
+    renderExport(state, width, height).toBlob((blob) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    }, 'image/png');
+  });
+};
+
+const query = new URLSearchParams(location.search);
+const shot = query.get('shot');
 if (shot) {
-  runShot(shot, new URLSearchParams(location.search), async (photoName, text, opts) => {
-    if (opts.layout) { state.layout = opts.layout; layoutInput.value = opts.layout; }
-    if (opts.grade) { state.grade = opts.grade; gradeInput.value = opts.grade; }
-    if (opts.size) { state.size = opts.size; sizeInput.value = opts.size; }
-    state.caption = text;
-    captionInput.value = text;
-    if (opts.sub) { state.sub = opts.sub; subInput.value = opts.sub; }
-    const img = await loadImage(`samples/${photoName}.jpg`);
-    for (let i = 0; i < panelCount(); i++) {
-      state.panels[i] = { img, zoom: 1, panX: 0, panY: 0 };
-    }
-    buildPanelTabs();
-    syncPanelControls();
-    render();
+  runShot(shot, query, {
+    async load(photo, text, layout, grade, title) {
+      state.layout = layout;
+      state.grade = grade;
+      state.title = title;
+      state.caption = text;
+      const img = await loadImage('samples/' + photo + '.jpg');
+      const want = PANEL_COUNT[layout];
+      state.panels = Array.from({ length: want }, () => blankPanel(img));
+      buildPanelControls();
+      refresh();
+    },
   });
 } else {
-  buildPanelTabs();
-  syncPanelControls();
-  render();
+  setLayout('hero');
+  loadSample('pier', true).catch(() => refresh());
 }

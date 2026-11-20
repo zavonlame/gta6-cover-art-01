@@ -1,48 +1,27 @@
-/* Neon Vice editor: a dark desk around a bright sunset cover. */
-html, body { margin: 0; min-height: 100%; background: #12081f; color: #f4eefc; font: 15px/1.45 system-ui, sans-serif; }
-.app { display: flex; gap: 28px; align-items: flex-start; justify-content: center; padding: 24px; box-sizing: border-box; }
-.controls { display: flex; flex-direction: column; gap: 14px; width: 300px; flex: none; }
-.controls h1 {
-  margin: 0; font-size: 34px; letter-spacing: 2px; color: #fff;
-  text-shadow: 0 0 14px #ff2e88, 0 0 34px #ff2e88;
-}
-.tag { margin: 0; color: #c9b8e0; }
-fieldset {
-  border: 1px solid #4b2a6e; border-radius: 10px; padding: 12px;
-  display: flex; flex-direction: column; gap: 10px; margin: 0;
-}
-legend { font-weight: 700; color: #ffd166; padding: 0 6px; }
-label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
-label span { color: #00e5ff; font-weight: 400; }
-input[type=text], select {
-  font: inherit; padding: 8px; border: 1px solid #6b4a94; border-radius: 6px;
-  background: #1e0f33; color: #fff;
-}
-input[type=file] { font: inherit; }
-input[type=range] { width: 100%; accent-color: #ff2e88; }
-button {
-  font: inherit; font-weight: 700; padding: 9px 10px; border: 1px solid #6b4a94;
-  border-radius: 6px; background: #241640; color: #fff; cursor: pointer;
-}
+/* Neon Vice editor: a dark page with neon pink and cyan accents, so the bright
+   cover preview is the thing your eye lands on first. */
+html, body { margin: 0; min-height: 100%; background: #0b0616; color: #f2ecff; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.top { padding: 20px 28px 4px; }
+.top h1 { margin: 0; font-size: 34px; letter-spacing: 4px; color: #fff; text-shadow: 0 0 18px #ff2e88, 0 0 42px #ff2e88; }
+.top p { margin: 2px 0 0; color: #b9a8d8; }
+.app { display: flex; gap: 28px; align-items: flex-start; padding: 18px 28px 28px; box-sizing: border-box; }
+.preview-wrap { flex: 0 0 auto; position: sticky; top: 18px; }
+#preview { width: min(62vh, 52vw); height: min(62vh, 52vw); display: block; background: #12081f; border: 2px solid #ff2e88; box-shadow: 0 0 34px rgba(255, 46, 136, 0.35), 0 14px 40px rgba(0, 0, 0, 0.6); }
+.controls { flex: 1 1 340px; max-width: 460px; display: flex; flex-direction: column; gap: 10px; }
+.controls h2 { margin: 12px 0 2px; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #7df9ff; }
+.controls p { margin: 0; }
+.hint { color: #b9a8d8; font-size: 13px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 13px; }
+input[type=text] { font: inherit; padding: 9px 10px; border: 1px solid #5b4a7a; border-radius: 8px; background: #1a0f2e; color: #fff; }
+input[type=range] { accent-color: #ff2e88; }
+button { font: inherit; font-weight: 700; padding: 9px 13px; border: 1px solid #5b4a7a; border-radius: 8px; background: #1a0f2e; color: #f2ecff; cursor: pointer; }
 button:hover { border-color: #ff2e88; }
-button.primary { background: #ff2e88; border-color: #ff2e88; font-size: 17px; padding: 12px; }
-button.primary:hover { background: #ff4d9d; }
-.row { display: flex; gap: 8px; }
-.row button { flex: 1; }
-.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
-.tab { padding: 6px 9px; font-size: 13px; }
-.tab.active { background: #ff2e88; border-color: #ff2e88; }
-#status { margin: 0; min-height: 1.2em; color: #00e5ff; }
-canvas {
-  width: min(72vh, 58vw); height: auto; flex: none;
-  box-shadow: 0 10px 44px rgba(0, 0, 0, 0.55), 0 0 0 1px #4b2a6e;
-  background: #2b1055;
-}
-body.shot-cover .controls { display: none; }
+button.on { background: #ff2e88; border-color: #ff2e88; color: #fff; box-shadow: 0 0 14px rgba(255, 46, 136, 0.55); }
+.panel-card { border: 1px solid #3d2b5c; border-radius: 10px; padding: 12px; margin-top: 8px; background: #150b26; display: flex; flex-direction: column; gap: 10px; }
+.panel-card h3 { margin: 0; font-size: 14px; color: #ffd166; }
+#status { min-height: 1.4em; color: #7df9ff; }
+body.shot-cover .top, body.shot-cover .controls { display: none; }
 body.shot-cover .app { padding: 0; }
-body.shot-cover canvas { width: 100vw; height: 100vh; box-shadow: none; }
-@media (max-width: 760px) {
-  .app { flex-direction: column; align-items: center; }
-  .controls { width: 100%; max-width: 420px; }
-  canvas { width: 100%; max-width: 420px; }
-}
+body.shot-cover .preview-wrap { position: static; }
+body.shot-cover #preview { width: 100vw; height: 100vh; border: 0; box-shadow: none; }

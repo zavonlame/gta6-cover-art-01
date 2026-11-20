@@ -1,20 +1,17 @@
-// Fixed scenes for screenshots: ?shot=editor shows the page with a sample
-// photo; ?shot=cover shows the cover alone. Query params pick the sample
-// photo, caption, layout, grade and export size:
-//   ?shot=cover&photo=pier&caption=Sunset%20Heist&layout=trio&grade=sunset&size=1080x1080
-// window.__shotReady is set once the scene has painted.
-export async function runShot(shot, query, load) {
+// Fixed scenes for screenshots: ?shot=editor shows the editor with a sample photo
+// loaded; ?shot=cover shows the finished cover on its own, full-bleed. The query
+// picks the sample (photo), the words (caption, title) and the look (layout,
+// grade). window.__shotReady is set once the scene is painted.
+export async function runShot(shot, query, hooks) {
+  const photo = query.get('photo') || 'pier';
+  const caption = query.get('caption') || 'Sunset Heist';
+  const layout = query.get('layout') || 'hero';
+  const grade = query.get('grade') || 'sunset';
+  const title = query.get('title') || 'NEON VICE';
+
   if (shot === 'cover') document.body.classList.add('shot-cover');
-  const opts = {
-    layout: query.get('layout') || 'trio',
-    grade: query.get('grade') || 'sunset',
-    size: query.get('size') || '1080x1080',
-    sub: query.get('sub') || 'Neon Vice',
-  };
-  await load(
-    query.get('photo') ?? 'pier',
-    query.get('caption') ?? 'Sunset Heist',
-    opts,
-  );
-  requestAnimationFrame(() => requestAnimationFrame(() => { window.__shotReady = true; }));
+  await hooks.load(photo, caption, layout, grade, title);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    window.__shotReady = true;
+  }));
 }

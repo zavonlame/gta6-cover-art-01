@@ -3,71 +3,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Neon Vice — GTA-style Cover Maker</title>
+<title>Neon Vice — GTA 6 Cover Art Maker</title>
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
+<header class="top">
+  <h1>NEON VICE</h1>
+  <p>Turn a photo and a caption into GTA-style cover art.</p>
+</header>
 <main class="app">
+  <section class="preview-wrap">
+    <canvas id="preview" width="1080" height="1080" aria-label="Cover preview"></canvas>
+  </section>
   <section class="controls">
-    <h1>NEON VICE</h1>
-    <p class="tag">Turn your photo into a Vice City sunset cover. Photos never leave this machine.</p>
+    <h2>Layout</h2>
+    <div id="layouts" class="row"></div>
 
-    <fieldset>
-      <legend>Photo</legend>
-      <label class="file">Upload a photo <input id="photo" type="file" accept="image/*"></label>
-      <div class="row">
-        <button type="button" data-sample="boulevard">Sample: Boulevard</button>
-        <button type="button" data-sample="pier">Sample: Pier</button>
-      </div>
-      <div id="panel-tabs" class="tabs" role="tablist" aria-label="Panels"></div>
-      <button id="fill-all" type="button">Fill empty panels with this photo</button>
-    </fieldset>
+    <h2>Colour grade</h2>
+    <div id="grades" class="row"></div>
 
-    <fieldset>
-      <legend>Crop the active panel</legend>
-      <label>Zoom <span id="zoom-val">100%</span>
-        <input id="zoom" type="range" min="1" max="3" step="0.05" value="1">
-      </label>
-      <label>Pan left–right <span id="panx-val">0.00</span>
-        <input id="panx" type="range" min="-1" max="1" step="0.05" value="0">
-      </label>
-      <label>Pan up–down <span id="pany-val">0.00</span>
-        <input id="pany" type="range" min="-1" max="1" step="0.05" value="0">
-      </label>
-    </fieldset>
+    <h2>Words</h2>
+    <label>Title <input id="title" type="text" maxlength="24" value="NEON VICE"></label>
+    <label>Caption <input id="caption" type="text" maxlength="40" value="Sunset Heist"></label>
 
-    <fieldset>
-      <legend>Words &amp; look</legend>
-      <label>Title <input id="caption" type="text" maxlength="40" value="Sunset Heist"></label>
-      <label>Sub-caption <input id="sub" type="text" maxlength="40" value="Neon Vice"></label>
-      <label>Layout
-        <select id="layout">
-          <option value="hero">Hero — one big photo</option>
-          <option value="split">Split — two panels</option>
-          <option value="trio" selected>Trio — big + two stacked</option>
-          <option value="grid">Grid — four panels</option>
-        </select>
-      </label>
-      <label>Colour grade
-        <select id="grade">
-          <option value="sunset" selected>Vice Sunset</option>
-          <option value="neon">Neon Night</option>
-          <option value="dusk">Palm Dusk</option>
-        </select>
-      </label>
-      <label>Export size
-        <select id="size">
-          <option value="1080x1080" selected>Square 1080 x 1080</option>
-          <option value="1080x1350">Portrait 1080 x 1350</option>
-          <option value="1920x1080">Landscape 1920 x 1080</option>
-        </select>
-      </label>
-    </fieldset>
+    <h2>Photos</h2>
+    <div class="row">
+      <button id="sample-boulevard" type="button">Sample: Boulevard</button>
+      <button id="sample-pier" type="button">Sample: Pier</button>
+    </div>
+    <p class="hint">Or upload your own photo into a panel below — each panel has its own zoom and pan.</p>
+    <div id="panels"></div>
 
-    <button id="export" type="button" class="primary">Export PNG</button>
+    <h2>Export</h2>
+    <div id="exports" class="row"></div>
     <p id="status" role="status"></p>
   </section>
-  <canvas id="cover" width="1080" height="1080" aria-label="The cover preview"></canvas>
 </main>
 <script type="module" src="./src/main.js"></script>
 </body>
